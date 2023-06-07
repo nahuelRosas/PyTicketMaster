@@ -161,10 +161,5 @@ cython_debug/
 
 profiles
 chromeDriver
-htmlTest
 mp3
-lib64
-include
 .vscode
-bin
-pyvenv.cfg
