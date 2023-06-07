@@ -11,7 +11,7 @@ bodhi-client==7.2.0
 Brlapi==0.8.4
 cachetools==5.2.0
 CCColUtils==1.5
-certifi==2021.10.8
+certifi==2022.12.7
 cffi==1.15.1
 chardet==5.1.0
 charset-normalizer==2.1.0
