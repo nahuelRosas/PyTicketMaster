@@ -1,8 +1,10 @@
-from functions.print_multiline import print_multiline
-from colorama import Fore, Style
+from colorama import Fore
+from src.print_multiline import print_multiline
 
-
-def print_title():
+def print_title() -> None:
+    """
+    Prints the program title in ASCII art format.
+    """
     title = r"""
  _____                _               _       ______                 _              _    
 |_   _|              | |             ( )      | ___ \               (_)            | |  
@@ -16,3 +18,6 @@ def print_title():
             By: Nahuel Rosas - Github: https://github.com/nahuelRosas          
     """
     print_multiline(title, Fore.LIGHTCYAN_EX, "center")
+
+if __name__ == "__main__":
+    print_title()
