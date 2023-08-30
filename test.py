@@ -23,8 +23,7 @@ PROFILES_DIR: str = config.get("Main", "profiles_dir")
 CHROMEDRIVER_PATH: str = config.get("Main", "chromedriver_path")
 NUM_PROFILES: int = config.getint("Main", "num_profiles")
 URL: str = config.get("Main", "URL")
-WAIT_TIME: int = config.getint("Main", "waitTime")
-START_TIME: str = config.get("Main", "startTime")
+START_TIME: str = "00:00:00"
 
 
 MESSAGE_TICKET: str = "N/A"
@@ -47,7 +46,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
         "--user-data-dir=" + PROFILES_DIR + "/profile" + str(profile_index)
     )
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument(
+        "--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-plugins")
     chrome_options.add_argument("--start-maximized")
@@ -55,12 +55,14 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
     chrome_options.add_argument("--disable-infobars")
     chrome_options.add_argument("--disable-notifications")
     chrome_options.add_argument("--disable-popup-blocking")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option(
+        "excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
     if quit_event:
         chrome_options.add_argument("--headless")
     service: Service = Service(CHROMEDRIVER_PATH)
-    driver: webdriver.Chrome = webdriver.Chrome(service=service, options=chrome_options)
+    driver: webdriver.Chrome = webdriver.Chrome(
+        service=service, options=chrome_options)
 
     try:
         driver.get(str(URL))
@@ -88,7 +90,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
                 sys.exit(0)
 
         progress_div: bs4.Tag = soup.find("div", id="MainPart_divProgressbar")
-        link_to_queue_ticket: bs4.Tag = soup.find("span", id="hlLinkToQueueTicket2")
+        link_to_queue_ticket: bs4.Tag = soup.find(
+            "span", id="hlLinkToQueueTicket2")
         last_update_time: bs4.Tag = soup.find(
             "span", id="MainPart_lbLastUpdateTimeText"
         )
@@ -122,7 +125,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
         )
 
         if progress_now:
-            estimated_time: str = calculate_completion_time(START_TIME, progress_now)
+            estimated_time: str = calculate_completion_time(
+                START_TIME, progress_now)
         else:
             estimated_time = "N/A"
 
@@ -170,7 +174,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
         while quit_event is False:
             try:
                 quit_event_text = input(
-                    "Press enter to quit profile " + str(profile_index + 1) + " "
+                    "Press enter to quit profile " +
+                    str(profile_index + 1) + " "
                 )
                 if quit_event_text == "":
                     quit_event = True
@@ -209,7 +214,8 @@ def calculate_completion_time(start_time: str, progress_now: Union[str, None]) -
             return "Already at 100% progress"
 
         completion_time: datetime = elapsed_time / (float(progress_now) / 100)
-        completion_time_hours: int = int(completion_time.total_seconds() // 3600)
+        completion_time_hours: int = int(
+            completion_time.total_seconds() // 3600)
         completion_time_minutes: int = int(
             (completion_time.total_seconds() % 3600) // 60
         )
@@ -225,7 +231,8 @@ def calculate_completion_time(start_time: str, progress_now: Union[str, None]) -
 
 
 def format_message_ticket(message_ticket: str) -> str:
-    message_ticket = re.sub(r"\*\*(.*?)\*\*", r"\033[1m\1\033[0m", message_ticket)
+    message_ticket = re.sub(
+        r"\*\*(.*?)\*\*", r"\033[1m\1\033[0m", message_ticket)
     message_ticket = message_ticket.replace("\\", "\n")
     message_ticket = re.sub(r"\n{3,}", "\n\n", message_ticket)
     return message_ticket
@@ -240,16 +247,20 @@ def process_results_data() -> None:
 
     if MESSAGE_TICKET != "N/A":
         MESSAGE_TICKET_WITHFORMAT: str = format_message_ticket(MESSAGE_TICKET)
-        print_multiline(f"LAST NEWS {TIME_MESSAGE_TICKET}\n", Fore.LIGHTWHITE_EX)
-        print_multiline(f"{MESSAGE_TICKET_WITHFORMAT}\n", Fore.LIGHTGREEN_EX, "center")
+        print_multiline(
+            f"LAST NEWS {TIME_MESSAGE_TICKET}\n", Fore.LIGHTWHITE_EX)
+        print_multiline(f"{MESSAGE_TICKET_WITHFORMAT}\n",
+                        Fore.LIGHTGREEN_EX, "center")
         print_multiline(f"Results:\n", Fore.LIGHTWHITE_EX)
 
     if "Users" in df.columns:
         columns_with_data: pd.Index = df.columns[df.count() > 0]
         df_subset: pd.DataFrame = df[columns_with_data]
-        df_order: pd.DataFrame = df_subset.sort_values(by=["Users"], ascending=False)
+        df_order: pd.DataFrame = df_subset.sort_values(
+            by=["Users"], ascending=False)
         print_multiline(
-            df_order.to_markdown(numalign="center", stralign="center", index=False),
+            df_order.to_markdown(
+                numalign="center", stralign="center", index=False),
             Fore.LIGHTMAGENTA_EX,
             "center",
         )
@@ -267,16 +278,15 @@ def process_results_data() -> None:
 
 def print_title() -> None:
     title: str = r"""
- _____                _               _       ______                 _              _    
-|_   _|              | |             ( )      | ___ \               (_)            | |  
-  | |    __ _  _   _ | |  ___   _ __ |/  ___  | |_/ / _ __   ___     _   ___   ___ | |_ 
-  | |   / _` || | | || | / _ \ | '__|   / __| |  __/ | '__| / _ \   | | / _ \ / __|| __|
-  | |  | (_| || |_| || || (_) || |      \__ \ | |    | |   | (_) |  | ||  __/| (__ | |_ 
-  \_/   \__,_| \__, ||_| \___/ |_|      |___/ \_|    |_|    \___/   | | \___| \___| \__|
-                __/ |                                              _/ |                 
-               |___/                                              |__/                  
-               
-            By: Nahuel Rosas - Github: https://github.com/nahuelRosas          
+██████╗ ██╗   ██╗████████╗██╗ ██████╗██╗  ██╗███████╗████████╗███╗   ███╗ █████╗ ███████╗████████╗███████╗██████╗ 
+██╔══██╗╚██╗ ██╔╝╚══██╔══╝██║██╔════╝██║ ██╔╝██╔════╝╚══██╔══╝████╗ ████║██╔══██╗██╔════╝╚══██╔══╝██╔════╝██╔══██╗
+██████╔╝ ╚████╔╝    ██║   ██║██║     █████╔╝ █████╗     ██║   ██╔████╔██║███████║███████╗   ██║   █████╗  ██████╔╝
+██╔═══╝   ╚██╔╝     ██║   ██║██║     ██╔═██╗ ██╔══╝     ██║   ██║╚██╔╝██║██╔══██║╚════██║   ██║   ██╔══╝  ██╔══██╗
+██║        ██║      ██║   ██║╚██████╗██║  ██╗███████╗   ██║   ██║ ╚═╝ ██║██║  ██║███████║   ██║   ███████╗██║  ██║
+╚═╝        ╚═╝      ╚═╝   ╚═╝ ╚═════╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝     ╚═╝╚═╝  ╚═╝╚══════╝   ╚═╝   ╚══════╝╚═╝  ╚═╝
+                                                                                                                  
+            By: Nahuel Rosas - Github: https://github.com/nahuelRosas        
+            Twitter: https://twitter.com/queue_express        
     """
     print_multiline(title, Fore.LIGHTCYAN_EX, "center")
 
@@ -338,10 +348,8 @@ def initialize_config() -> tuple:
     chromedriver_path = config.get("Main", "chromedriver_path")
     num_profiles = config.getint("Main", "num_profiles")
     url = config.get("Main", "URL")
-    wait_time = config.getint("Main", "waitTime")
-    start_time = config.get("Main", "startTime")
 
-    return profiles_dir, chromedriver_path, num_profiles, url, wait_time, start_time
+    return profiles_dir, chromedriver_path, num_profiles, url
 
 
 def main() -> None:
@@ -350,8 +358,6 @@ def main() -> None:
         chromedriver_path,
         num_profiles,
         url,
-        wait_time,
-        start_time,
     ) = initialize_config()
 
     os.system("cls" if os.name == "nt" else "clear")
@@ -388,7 +394,8 @@ def main() -> None:
                 automatic_scraping: Union[str, None] = None
 
                 while automatic_scraping is None:
-                    print_multiline("Starting all profiles...", Fore.LIGHTWHITE_EX)
+                    print_multiline("Starting all profiles...",
+                                    Fore.LIGHTWHITE_EX)
                     print_multiline(
                         "Selecting the automatic option causes the system to start in headless mode and assumes that Queue has no human verification system."
                     )
@@ -430,7 +437,8 @@ def main() -> None:
                             raise ValueError
                     else:
                         automatic_scraping = None
-                        print("Error. Do you want to start automatic scraping? (y/n):")
+                        print(
+                            "Error. Do you want to start automatic scraping? (y/n):")
 
             else:
                 print("Error. Select a profile (1-{}).".format(num_profiles))

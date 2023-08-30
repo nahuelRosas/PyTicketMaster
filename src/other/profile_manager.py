@@ -21,6 +21,27 @@ MESSAGE_TICKET: str = "N/A"
 TIME_MESSAGE_TICKET: str = "N/A"
 
 
+def get_valid_profile_selection(num_profiles) -> int:
+    selected_profile_message_type = "INFO"
+    while True:
+        try:
+            print_multiline("Select a profile (1-{}):".format(num_profiles),
+                            message_type=selected_profile_message_type)
+            selected_profile = int(input())
+            if selected_profile < 1 or selected_profile > num_profiles:
+                raise ValueError
+            return selected_profile
+        except ValueError:
+            selected_profile_message_type = "ERROR"
+
+
+def start_scraping_all_profiles(num_profiles, profiles_dir):
+    for profile_index in range(num_profiles):
+        process_profile(profile_index, profiles_dir)
+        # process_results_data()
+        continue
+
+
 def getDriver(headless: bool) -> Optional[webdriver.Chrome]:
     """
     Create a Chrome driver instance with the specified options.
@@ -34,7 +55,8 @@ def getDriver(headless: bool) -> Optional[webdriver.Chrome]:
     try:
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--disable-dev-shm-usage")
-        chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+        chrome_options.add_argument(
+            "--disable-blink-features=AutomationControlled")
         chrome_options.add_argument("--disable-extensions")
         chrome_options.add_argument("--disable-plugins")
         chrome_options.add_argument("--start-maximized")
@@ -42,7 +64,8 @@ def getDriver(headless: bool) -> Optional[webdriver.Chrome]:
         chrome_options.add_argument("--disable-infobars")
         chrome_options.add_argument("--disable-notifications")
         chrome_options.add_argument("--disable-popup-blocking")
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+        chrome_options.add_experimental_option(
+            "excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option("useAutomationExtension", False)
         if headless:
             chrome_options.add_argument("--headless")
@@ -55,14 +78,14 @@ def getDriver(headless: bool) -> Optional[webdriver.Chrome]:
         return None
 
 
-
 def process_profile(profile_index: int, quit_event: bool = False) -> None:
     chrome_options: webdriver.ChromeOptions = webdriver.ChromeOptions()
     chrome_options.add_argument(
         "--user-data-dir=" + PROFILES_DIR + "/profile" + str(profile_index)
     )
     chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument(
+        "--disable-blink-features=AutomationControlled")
     chrome_options.add_argument("--disable-extensions")
     chrome_options.add_argument("--disable-plugins")
     chrome_options.add_argument("--start-maximized")
@@ -70,12 +93,14 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
     chrome_options.add_argument("--disable-infobars")
     chrome_options.add_argument("--disable-notifications")
     chrome_options.add_argument("--disable-popup-blocking")
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option(
+        "excludeSwitches", ["enable-automation"])
     chrome_options.add_experimental_option("useAutomationExtension", False)
     if quit_event:
         chrome_options.add_argument("--headless")
     service: Service = Service(CHROMEDRIVER_PATH)
-    driver: webdriver.Chrome = webdriver.Chrome(service=service, options=chrome_options)
+    driver: webdriver.Chrome = webdriver.Chrome(
+        service=service, options=chrome_options)
 
     try:
         driver.get(str(URL))
@@ -103,7 +128,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
                 sys.exit(0)
 
         progress_div: bs4.Tag = soup.find("div", id="MainPart_divProgressbar")
-        link_to_queue_ticket: bs4.Tag = soup.find("span", id="hlLinkToQueueTicket2")
+        link_to_queue_ticket: bs4.Tag = soup.find(
+            "span", id="hlLinkToQueueTicket2")
         last_update_time: bs4.Tag = soup.find(
             "span", id="MainPart_lbLastUpdateTimeText"
         )
@@ -137,7 +163,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
         )
 
         if progress_now:
-            estimated_time: str = calculate_completion_time(START_TIME, progress_now)
+            estimated_time: str = calculate_completion_time(
+                START_TIME, progress_now)
         else:
             estimated_time = "N/A"
 
@@ -185,7 +212,8 @@ def process_profile(profile_index: int, quit_event: bool = False) -> None:
         while quit_event is False:
             try:
                 quit_event_text = input(
-                    "Press enter to quit profile " + str(profile_index + 1) + " "
+                    "Press enter to quit profile " +
+                    str(profile_index + 1) + " "
                 )
                 if quit_event_text == "":
                     quit_event = True
