@@ -1,10 +1,12 @@
-import sys
 import os
+import re
+import sys
 import base64
 import shutil
 import configparser
+import requests
 from datetime import datetime
-from typing import Union, Dict,  List, Optional
+from typing import Union, Dict,  List, Optional, Any
 import speech_recognition as sr
 from speech_recognition import AudioData
 from colorama import Fore, Style
@@ -16,6 +18,9 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
+import pandas as pd
+from pandas import DataFrame
+from tqdm import tqdm
 
 
 class Application:
@@ -52,6 +57,7 @@ class Application:
         self.captcha_input_id: str = 'solution'
         self.captcha_button_xpath: str = '//*[@id="challenge-container"]/button'
         self.info = {}
+        self.news = {}
 
     def start(self) -> None:
         self.display_title()
@@ -103,7 +109,7 @@ class Application:
 
     def display(
         self,
-        text: str,
+        text: Any,
         color: str = Fore.RESET,
         alignment: str = "left",
         fill_char: str = " ",
@@ -208,7 +214,6 @@ class Application:
                     prompt=f"Do you want to change {config_name.replace('_', ' ')}? (y/n)",
                     default_value=False,
                 ))
-                print(response, config_name, prompt, default_value)
                 if response:
                     new_value = self.get_input(
                         prompt=f"Enter new value for {config_name.replace('_', ' ')}:", default_value=default_value, requires_value=True
@@ -228,7 +233,7 @@ class Application:
                              message_type="INFO")
             self.get_input(prompt="Press any key to continue",
                            any_key=True, message_type="WARNING")
-            return profiles_directory, number_of_profiles, base_url
+            return config_values[0][2], config_values[1][2], config_values[2][2]
 
         except (ValueError, Exception) as error:
             error_message = str(object=error)
@@ -236,13 +241,25 @@ class Application:
                               error_message=error_message)
             return None
 
+    def format_message_ticket(self, message_ticket: str) -> str:
+        message_ticket = re.sub(
+            r"\*\*(.*?)\*\*", r"\033[1m\1\033[0m", message_ticket)
+        message_ticket = message_ticket.replace("\\", "\n")
+        message_ticket = re.sub(r"\n{3,}", "\n\n", message_ticket)
+        return message_ticket
+
     def perform_web_scraping(self) -> None:
         while True:
             self.display_title()
+            if self.news:
+                self.display_news()
             if self.errors:
                 self.display_errors()
+            if self.info:
+                self.display_data()
             self.display(text="Starting all profiles...",
                          message_type="INFO", show_time=True)
+
             response = self.get_input(
                 prompt="Do you want to start automatic scraping? (y/n):", default_value=False, requires_value=False
             )
@@ -259,18 +276,39 @@ class Application:
                              message_type="INFO", show_time=True)
                 self.manual_scraping()
 
-    def manual_scraping(self) -> None:
-        if self.new_data:
-            headless = self.get_input(
-                prompt="Do you want to start with headless mode? (y/n):", default_value=False, requires_value=False
-            )
+    def display_data(self, with_by_pass: bool = False) -> None:
+        if self.info:
+            data_frame: DataFrame = pd.DataFrame.from_dict(
+                data=self.info, orient='index')
+            data_frame.drop(labels=['message_on_ticket', 'message_on_ticket_time'],
+                            axis=1, inplace=True)
+            data_frame.sort_values(by=['progress', 'users_ahead', 'which_is_in'], ascending=[
+                                   True, True, True], inplace=True)
+            self.display_title()
+            self.display_news()
+            self.display(text="Results:", message_type="INFO")
+            result_markdown = data_frame.to_markdown(
+                numalign="center", stralign="center", index=False)
+            self.display(text=result_markdown, color=Fore.LIGHTMAGENTA_EX,
+                         alignment="center")
+            with open(file="results.txt", mode="w") as f:
+                f.write(result_markdown)
+            if with_by_pass:
+                self.get_input(prompt="Press enter to continue",
+                               any_key=True, message_type="WARNING")
 
+    def manual_scraping(self) -> None:
+        if self.news:
+            self.display_news()
+        if self.errors:
+            self.display_errors()
+        if self.new_data:
             profile_index = int(self.get_input(
                 prompt=f"Enter profile index (1-{self.new_data[1]}) :", default_value=0, requires_value=True
             ))
 
             data = self.profile_processor(
-                profile_index=profile_index-1, headless=bool(headless))
+                profile_index=profile_index-1, headless=False, recaptcha=True)
             if data:
                 self.info[f"Profile-{profile_index-1}"] = data
             self.display(
@@ -279,28 +317,56 @@ class Application:
                 text="Press enter to continue", message_type="INFO")
             input()
 
+    def display_news(self) -> None:
+        if self.news:
+            message = self.format_message_ticket(
+                message_ticket=self.news['message'])
+            self.display(
+                text=f"Last news: \n{message}", alignment="left", color=Fore.LIGHTRED_EX,
+
+            )
+            self.display(
+                text=f"Time at which the last news was given: {self.news['time']}", alignment="left", color=Fore.LIGHTRED_EX,)
+
     def auto_scraping(self) -> None:
+        if self.news:
+            self.display_news()
+        if self.errors:
+            self.display_errors()
         headless = self.get_input(
             prompt="Do you want to start with headless mode? (y/n):", default_value=False,  requires_value=False
         )
         if self.new_data:
+            progress_bar = tqdm(
+                total=self.new_data[1], desc="Progress", unit="profiles")
             for profile_index in range(self.new_data[1]):
+                if self.info:
+                    self.display_data(with_by_pass=True)
                 data = self.profile_processor(
-                    profile_index=profile_index, headless=bool(headless))
+                    profile_index=profile_index, headless=bool(headless), progress_bar=progress_bar
+                )
                 if data:
-                    self.info[f"Profile-{profile_index}"] = data
+                    data['profile'] = profile_index + 1
+                    self.info[f"Profile {profile_index + 1}"] = data
+
+            progress_bar.close()
         self.display(
             text="All profiles processed successfully", message_type="SUCCESS")
-        self.display(
-            text="Press enter to continue", message_type="INFO")
-        input()
+        self.display_data()
 
     def profile_processor(self,
                           profile_index: int,
-                          headless: bool = False
+                          progress_bar: tqdm | None = None,
+                          headless: bool = False,
+                          recaptcha: bool = False,
+                          attempts: int = 0,
                           ):
         try:
             self.display_title()
+            if self.info:
+                self.display_data(with_by_pass=True)
+            if progress_bar:
+                progress_bar.update(n=1)
             self.display(
                 text=f"Processing profile: {profile_index+1}, please wait...", message_type="INFO")
             self.create_driver(profile_index=profile_index, headless=headless)
@@ -308,20 +374,33 @@ class Application:
                 self.display(
                     text=f"Error creating chrome driver for profile: {profile_index}", message_type="ERROR")
                 sys.exit()
-            self.driver.get(url=str(self.new_data[2]))
+            self.driver.get(url=str(object=self.new_data[2]))
+            self.driver.implicitly_wait(time_to_wait=5)
             html: str = self.driver.page_source
             soup: BeautifulSoup = BeautifulSoup(
                 markup=html, features="html.parser")
             div_challenge: Tag | NavigableString | None = soup.find(
                 name="div", id="divChallenge")
 
+            if recaptcha:
+                self.get_input(
+                    prompt="Press enter to continue", any_key=True, message_type="WARNING"
+                )
+                div_challenge = None
+
             if div_challenge:
-                self.solve_captcha(html=html)
-                self.driver.quit()
-                self.profile_processor(
-                    profile_index=profile_index, headless=headless)
+                if attempts < 2:
+                    self.solve_captcha(html=html)
+                    self.driver.quit()
+                    self.profile_processor(
+                        profile_index=profile_index, headless=headless, attempts=attempts+1, progress_bar=None)
+                else:
+                    self.driver.quit()
+                    self.profile_processor(
+                        profile_index=profile_index, headless=False,  attempts=0, recaptcha=True, progress_bar=None)
             else:
                 data = self.collect_data(soup=soup)
+                self.driver.quit()
                 return data
 
         except Exception as error:
@@ -402,6 +481,7 @@ class Application:
 
     def solve_captcha(self, html: str) -> None:
         try:
+
             self.display_title()
             self.display(
                 text="Captcha detected, solving with Speech Recognition...", message_type='WARNING')
@@ -410,7 +490,8 @@ class Application:
                 soup = BeautifulSoup(markup=html, features='html.parser')
                 audio_element: Tag | NavigableString | None = soup.find(
                     name='audio', id='audioPlayer')
-
+                frame = self.driver.find_elements(
+                    by=By.TAG_NAME, value="iframe")
                 if audio_element:
                     source_element: Tag | NavigableString | int | None = audio_element.find(
                         'source')
@@ -433,11 +514,97 @@ class Application:
                                     captcha_button[0].click()
                                     self.display(
                                         text="Captcha solved successfully", message_type='INFO')
+                                    self.get_input(
+                                        prompt="Press enter to continue", any_key=True, message_type="WARNING"
+                                    )
+                                else:
+                                    self.display(
+                                        text="Captcha button not found", message_type='ERROR')
+                                    self.get_input(
+                                        prompt="Press enter to continue", any_key=True, message_type="WARNING"
+                                    )
+                            else:
+                                self.display(
+                                    text="Captcha input not found", message_type='ERROR')
+                                self.get_input(
+                                    prompt="Press enter to continue", any_key=True, message_type="WARNING"
+                                )
+
+                elif frame:
+                    self.driver.switch_to.frame(frame_reference=frame[0])
+                    self.driver.implicitly_wait(time_to_wait=5)
+                    box_captcha_xpath = '//*[@id="recaptcha-anchor"]/div[1]'
+                    box_captcha = self.driver.find_element(
+                        By.XPATH, box_captcha_xpath)
+
+                    if box_captcha:
+                        box_captcha.click()
+                        self.driver.implicitly_wait(2)
+                        audio_button_xpath = '//*[@id="recaptcha-audio-button"]'
+                        audio_button = self.driver.find_element(
+                            By.XPATH, audio_button_xpath)
+                        if audio_button:
+                            audio_button.click()
+                            self.driver.implicitly_wait(5)
+                            audio_button_download_xpath = '//*[@id="rc-audio"]/div[7]/a'
+                            audio_button_download_href = self.driver.find_element(
+                                By.XPATH, audio_button_download_xpath
+                            ).get_attribute('href')
+                            if audio_button_download_href:
+                                self.download_audio(audio_button_download_href)
+                                self.driver.implicitly_wait(5)
+                                corrected_text = self.recognize_audio()
+                                input_xpath = '//*[@id="audio-response"]'
+                                input_captcha = self.driver.find_element(
+                                    By.XPATH, input_xpath)
+                                if corrected_text and input_captcha:
+                                    input_captcha.send_keys(corrected_text)
+                                    button_verify_xpath = '//*[@id="recaptcha-verify-button"]'
+                                    button_verify = self.driver.find_element(
+                                        By.XPATH, button_verify_xpath)
+                                    if button_verify:
+                                        button_verify.click()
+                                        self.display(
+                                            text="Captcha solved successfully", message_type='INFO')
+                                        self.get_input(
+                                            prompt="Press enter to continue", any_key=True, message_type="WARNING")
+                                    else:
+                                        self.display(
+                                            text="Captcha verify button not found", message_type='ERROR')
+                                        self.get_input(
+                                            prompt="Press enter to continue", any_key=True, message_type="WARNING")
+                                else:
+                                    self.display(
+                                        text="Corrected text or input field not found", message_type='ERROR')
+                        else:
+                            self.display(
+                                text="Audio button not found", message_type='ERROR')
+
+                    else:
+                        self.display(
+                            text="Captcha box not detected", message_type='INFO')
+
+                else:
+                    self.display(
+                        text="Captcha audio not detected", message_type='INFO')
+
         except Exception as error:
             self.display(text=f"Error while solving captcha: {error}",
                          message_type='ERROR')
             self.handle_error(origin_file="solve_captcha",
                               error_message=str(object=error))
+
+    def download_audio(self, audio_url):
+        if self.driver:
+            self.driver.execute_script(script="window.open('');")
+            self.driver.switch_to.window(
+                window_name=self.driver.window_handles[1])
+            self.driver.get(url=audio_url)
+            request_audio = requests.get(url=audio_url, timeout=5)
+            with open(file=self.audio_file_path, mode='wb') as file:
+                file.write(request_audio.content)
+            self.driver.close()
+            self.driver.switch_to.window(self.driver.window_handles[0])
 
     def find_element(self, element_id: str, soup: BeautifulSoup) -> Tag | NavigableString | None:
         return soup.find(id=element_id)
@@ -471,6 +638,10 @@ class Application:
                 data[key] = [item.get_text() for item in value]
             else:
                 data[key] = None
+
+        self.news["message"] = data["message_on_ticket"]
+        self.news["time"] = data["message_on_ticket_time"]
+
         return data
 
 

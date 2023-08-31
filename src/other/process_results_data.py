@@ -24,7 +24,7 @@ def process_results_data() -> None:
     if "Users" in df.columns:
         columns_with_data = df.columns[df.count() > 0]
         df_subset = df[columns_with_data]
-        df_order = df_subset.sort_values(by=["Users"], ascending=False)
+        df_order: DataFrame = df_subset.sort_values(by=["Users"], ascending=False)
         print_multiline(
             df_order.to_markdown(numalign="center", stralign="center", index=False),
             Fore.LIGHTMAGENTA_EX,
