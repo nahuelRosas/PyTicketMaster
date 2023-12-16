@@ -4,9 +4,9 @@ import sys
 import base64
 import shutil
 import configparser
-import requests
 from datetime import datetime
-from typing import Union, Dict,  List, Optional, Any
+from typing import Union, Dict, Optional, Any
+import requests
 import speech_recognition as sr
 from speech_recognition import AudioData
 from colorama import Fore, Style
@@ -15,7 +15,7 @@ from bs4.element import Tag, NavigableString, ResultSet
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
-from selenium.webdriver.remote.webelement import WebElement
+# from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 import pandas as pd
@@ -291,8 +291,9 @@ class Application:
                 numalign="center", stralign="center", index=False)
             self.display(text=result_markdown, color=Fore.LIGHTMAGENTA_EX,
                          alignment="center")
-            with open(file="results.txt", mode="w") as f:
-                f.write(result_markdown)
+            with open(file="results.txt", mode="w", encoding="utf-8") as function:
+                function.write(result_markdown)
+
             if with_by_pass:
                 self.get_input(prompt="Press enter to continue",
                                any_key=True, message_type="WARNING")
@@ -317,20 +318,20 @@ class Application:
                 text="Press enter to continue", message_type="INFO")
             input()
 
-    def display_news(self) -> None:
-        if self.news:
-            message = self.format_message_ticket(
-                message_ticket=self.news['message'])
-            self.display(
-                text=f"Last news: \n{message}", alignment="left", color=Fore.LIGHTRED_EX,
+    # def display_news(self) -> None:
+        # if self.news:
+            # message = self.format_message_ticket(
+            #     message_ticket=self.news['message'])
+            # self.display(
+            #     text=f"Last news: \n{message}", alignment="left", color=Fore.LIGHTRED_EX,
 
-            )
-            self.display(
-                text=f"Time at which the last news was given: {self.news['time']}", alignment="left", color=Fore.LIGHTRED_EX,)
+            # )
+            # self.display(
+            #     text=f"Time at which the last news was given: {self.news['time']}", alignment="left", color=Fore.LIGHTRED_EX,)
 
     def auto_scraping(self) -> None:
-        if self.news:
-            self.display_news()
+        # if self.news:
+        #     self.display_news()
         if self.errors:
             self.display_errors()
         headless = self.get_input(
@@ -375,29 +376,30 @@ class Application:
                     text=f"Error creating chrome driver for profile: {profile_index}", message_type="ERROR")
                 sys.exit()
             self.driver.get(url=str(object=self.new_data[2]))
-            self.driver.implicitly_wait(time_to_wait=5)
+            self.driver.implicitly_wait(time_to_wait=10)
             html: str = self.driver.page_source
             soup: BeautifulSoup = BeautifulSoup(
                 markup=html, features="html.parser")
             div_challenge: Tag | NavigableString | None = soup.find(
                 name="div", id="divChallenge")
 
-            if recaptcha:
+            if div_challenge:
                 self.get_input(
                     prompt="Press enter to continue", any_key=True, message_type="WARNING"
                 )
-                div_challenge = None
+                # if recaptcha:
+            #     div_challenge = None
 
-            if div_challenge:
-                if attempts < 2:
-                    self.solve_captcha(html=html)
-                    self.driver.quit()
-                    self.profile_processor(
-                        profile_index=profile_index, headless=headless, attempts=attempts+1, progress_bar=None)
-                else:
-                    self.driver.quit()
-                    self.profile_processor(
-                        profile_index=profile_index, headless=False,  attempts=0, recaptcha=True, progress_bar=None)
+            # if div_challenge:
+            #     if attempts < 1:
+            #         self.solve_captcha(html=html)
+            #         self.driver.quit()
+            #         self.profile_processor(
+            #             profile_index=profile_index, headless=headless, attempts=attempts+1, progress_bar=None)
+            #     else:
+            #         self.driver.quit()
+            #         self.profile_processor(
+            #             profile_index=profile_index, headless=False,  attempts=0, recaptcha=True, progress_bar=None)
             else:
                 data = self.collect_data(soup=soup)
                 self.driver.quit()
@@ -480,119 +482,121 @@ class Application:
             return None
 
     def solve_captcha(self, html: str) -> None:
-        try:
+        self.get_input(prompt="Press enter to continue", any_key=True)
 
-            self.display_title()
-            self.display(
-                text="Captcha detected, solving with Speech Recognition...", message_type='WARNING')
+        # try:
 
-            if self.driver:
-                soup = BeautifulSoup(markup=html, features='html.parser')
-                audio_element: Tag | NavigableString | None = soup.find(
-                    name='audio', id='audioPlayer')
-                frame = self.driver.find_elements(
-                    by=By.TAG_NAME, value="iframe")
-                if audio_element:
-                    source_element: Tag | NavigableString | int | None = audio_element.find(
-                        'source')
-                    if source_element and isinstance(source_element, Tag):
-                        audio_base64: str = str(
-                            object=source_element['src']).split(sep=',')[1]
-                        self.save_audio_to_file(audio_base64=audio_base64)
-                        corrected_text: str | None = self.recognize_audio()
+        #     self.display_title()
+        #     self.display(
+        #         text="Captcha detected, solving with Speech Recognition...", message_type='WARNING')
 
-                        if corrected_text:
-                            captcha_code_input: List[WebElement] = self.driver.find_elements(
-                                by=By.ID, value=self.captcha_input_id)
+        #     if self.driver:
+        #         soup = BeautifulSoup(markup=html, features='html.parser')
+        #         audio_element: Tag | NavigableString | None = soup.find(
+        #             name='audio', id='audioPlayer')
+        #         frame = self.driver.find_elements(
+        #             by=By.TAG_NAME, value="iframe")
+        #         if audio_element:
+        #             source_element: Tag | NavigableString | int | None = audio_element.find(
+        #                 'source')
+        #             if source_element and isinstance(source_element, Tag):
+        #                 audio_base64: str = str(
+        #                     object=source_element['src']).split(sep=',')[1]
+        #                 self.save_audio_to_file(audio_base64=audio_base64)
+        #                 corrected_text: str | None = self.recognize_audio()
 
-                            if captcha_code_input:
-                                captcha_code_input[0].send_keys(corrected_text)
-                                captcha_button: List[WebElement] = self.driver.find_elements(
-                                    by=By.XPATH, value=self.captcha_button_xpath)
+        #                 if corrected_text:
+        #                     captcha_code_input: List[WebElement] = self.driver.find_elements(
+        #                         by=By.ID, value=self.captcha_input_id)
 
-                                if captcha_button:
-                                    captcha_button[0].click()
-                                    self.display(
-                                        text="Captcha solved successfully", message_type='INFO')
-                                    self.get_input(
-                                        prompt="Press enter to continue", any_key=True, message_type="WARNING"
-                                    )
-                                else:
-                                    self.display(
-                                        text="Captcha button not found", message_type='ERROR')
-                                    self.get_input(
-                                        prompt="Press enter to continue", any_key=True, message_type="WARNING"
-                                    )
-                            else:
-                                self.display(
-                                    text="Captcha input not found", message_type='ERROR')
-                                self.get_input(
-                                    prompt="Press enter to continue", any_key=True, message_type="WARNING"
-                                )
+        #                     if captcha_code_input:
+        #                         captcha_code_input[0].send_keys(corrected_text)
+        #                         captcha_button: List[WebElement] = self.driver.find_elements(
+        #                             by=By.XPATH, value=self.captcha_button_xpath)
 
-                elif frame:
-                    self.driver.switch_to.frame(frame_reference=frame[0])
-                    self.driver.implicitly_wait(time_to_wait=5)
-                    box_captcha_xpath = '//*[@id="recaptcha-anchor"]/div[1]'
-                    box_captcha = self.driver.find_element(
-                        By.XPATH, box_captcha_xpath)
+        #                         if captcha_button:
+        #                             captcha_button[0].click()
+        #                             self.display(
+        #                                 text="Captcha solved successfully", message_type='INFO')
+        #                             self.get_input(
+        #                                 prompt="Press enter to continue", any_key=True, message_type="WARNING"
+        #                             )
+        #                         else:
+        #                             self.display(
+        #                                 text="Captcha button not found", message_type='ERROR')
+        #                             self.get_input(
+        #                                 prompt="Press enter to continue", any_key=True, message_type="WARNING"
+        #                             )
+        #                     else:
+        #                         self.display(
+        #                             text="Captcha input not found", message_type='ERROR')
+        #                         self.get_input(
+        #                             prompt="Press enter to continue", any_key=True, message_type="WARNING"
+        #                         )
 
-                    if box_captcha:
-                        box_captcha.click()
-                        self.driver.implicitly_wait(2)
-                        audio_button_xpath = '//*[@id="recaptcha-audio-button"]'
-                        audio_button = self.driver.find_element(
-                            By.XPATH, audio_button_xpath)
-                        if audio_button:
-                            audio_button.click()
-                            self.driver.implicitly_wait(5)
-                            audio_button_download_xpath = '//*[@id="rc-audio"]/div[7]/a'
-                            audio_button_download_href = self.driver.find_element(
-                                By.XPATH, audio_button_download_xpath
-                            ).get_attribute('href')
-                            if audio_button_download_href:
-                                self.download_audio(audio_button_download_href)
-                                self.driver.implicitly_wait(5)
-                                corrected_text = self.recognize_audio()
-                                input_xpath = '//*[@id="audio-response"]'
-                                input_captcha = self.driver.find_element(
-                                    By.XPATH, input_xpath)
-                                if corrected_text and input_captcha:
-                                    input_captcha.send_keys(corrected_text)
-                                    button_verify_xpath = '//*[@id="recaptcha-verify-button"]'
-                                    button_verify = self.driver.find_element(
-                                        By.XPATH, button_verify_xpath)
-                                    if button_verify:
-                                        button_verify.click()
-                                        self.display(
-                                            text="Captcha solved successfully", message_type='INFO')
-                                        self.get_input(
-                                            prompt="Press enter to continue", any_key=True, message_type="WARNING")
-                                    else:
-                                        self.display(
-                                            text="Captcha verify button not found", message_type='ERROR')
-                                        self.get_input(
-                                            prompt="Press enter to continue", any_key=True, message_type="WARNING")
-                                else:
-                                    self.display(
-                                        text="Corrected text or input field not found", message_type='ERROR')
-                        else:
-                            self.display(
-                                text="Audio button not found", message_type='ERROR')
+        #         elif frame:
+        #             self.driver.switch_to.frame(frame_reference=frame[0])
+        #             self.driver.implicitly_wait(time_to_wait=5)
+        #             box_captcha_xpath = '//*[@id="recaptcha-anchor"]/div[1]'
+        #             box_captcha = self.driver.find_element(
+        #                 By.XPATH, box_captcha_xpath)
 
-                    else:
-                        self.display(
-                            text="Captcha box not detected", message_type='INFO')
+        #             if box_captcha:
+        #                 box_captcha.click()
+        #                 self.driver.implicitly_wait(2)
+        #                 audio_button_xpath = '//*[@id="recaptcha-audio-button"]'
+        #                 audio_button = self.driver.find_element(
+        #                     By.XPATH, audio_button_xpath)
+        #                 if audio_button:
+        #                     audio_button.click()
+        #                     self.driver.implicitly_wait(5)
+        #                     audio_button_download_xpath = '//*[@id="rc-audio"]/div[7]/a'
+        #                     audio_button_download_href = self.driver.find_element(
+        #                         By.XPATH, audio_button_download_xpath
+        #                     ).get_attribute('href')
+        #                     if audio_button_download_href:
+        #                         self.download_audio(audio_button_download_href)
+        #                         self.driver.implicitly_wait(5)
+        #                         corrected_text = self.recognize_audio()
+        #                         input_xpath = '//*[@id="audio-response"]'
+        #                         input_captcha = self.driver.find_element(
+        #                             By.XPATH, input_xpath)
+        #                         if corrected_text and input_captcha:
+        #                             input_captcha.send_keys(corrected_text)
+        #                             button_verify_xpath = '//*[@id="recaptcha-verify-button"]'
+        #                             button_verify = self.driver.find_element(
+        #                                 By.XPATH, button_verify_xpath)
+        #                             if button_verify:
+        #                                 button_verify.click()
+        #                                 self.display(
+        #                                     text="Captcha solved successfully", message_type='INFO')
+        #                                 self.get_input(
+        #                                     prompt="Press enter to continue", any_key=True, message_type="WARNING")
+        #                             else:
+        #                                 self.display(
+        #                                     text="Captcha verify button not found", message_type='ERROR')
+        #                                 self.get_input(
+        #                                     prompt="Press enter to continue", any_key=True, message_type="WARNING")
+        #                         else:
+        #                             self.display(
+        #                                 text="Corrected text or input field not found", message_type='ERROR')
+        #                 else:
+        #                     self.display(
+        #                         text="Audio button not found", message_type='ERROR')
 
-                else:
-                    self.display(
-                        text="Captcha audio not detected", message_type='INFO')
+        #             else:
+        #                 self.display(
+        #                     text="Captcha box not detected", message_type='INFO')
 
-        except Exception as error:
-            self.display(text=f"Error while solving captcha: {error}",
-                         message_type='ERROR')
-            self.handle_error(origin_file="solve_captcha",
-                              error_message=str(object=error))
+        #         else:
+        #             self.display(
+        #                 text="Captcha audio not detected", message_type='INFO')
+
+        # except Exception as error:
+        # self.display(text=f"Error while solving captcha: {error}",
+        #              message_type='ERROR')
+        # self.handle_error(origin_file="solve_captcha",
+        #                   error_message=str(object=error))
 
     def download_audio(self, audio_url):
         if self.driver:
@@ -643,7 +647,6 @@ class Application:
         self.news["time"] = data["message_on_ticket_time"]
 
         return data
-
 
 if __name__ == "__main__":
     app = Application(config_path="config.ini")
